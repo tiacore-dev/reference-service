@@ -1,0 +1,19 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]  # длинные строки
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]  # замени на свой пакет, если другой
+combine-as-imports = true
+
+
+
+[tool.aerich]
+tortoise_orm = "app.database.config.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."

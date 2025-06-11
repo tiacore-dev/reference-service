@@ -1,0 +1,217 @@
+name: CI/CD to Server
+
+on:
+  push:
+    branches: [master, dev]
+
+jobs:
+  build-test-push:
+    if: github.ref_name == 'dev' || github.ref_name == 'master'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      TEST_DATABASE_URL: postgres://test:test@localhost:5432/test_db
+      PYTHONUNBUFFERED: 1
+      TEST_DB_HOST: host.docker.internal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Generate cache buster
+        run: echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
+
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+    
+      - name: Run Tests in Docker
+        run: |
+          docker buildx build \
+            --target test \
+            --build-arg LIB_REPO_TOKEN=${{ secrets.TOKEN_SHARED_LIB }} \
+            --build-arg CACHE_BUSTER=${{ env.CACHE_BUSTER }} \
+            --cache-from=type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/reference-service:buildcache \
+            --cache-to=type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/reference-service:buildcache,mode=max \
+            --load \
+            -t reference-service-test .
+          docker run \
+            --rm \
+            --add-host=host.docker.internal:host-gateway \
+            --env-file .env.test \
+            reference-service-test \
+            pytest --maxfail=3 --disable-warnings
+
+
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          target: prod
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/reference-service:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/reference-service:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/reference-service:buildcache,mode=max
+          build-args: |
+            LIB_REPO_TOKEN=${{ secrets.TOKEN_SHARED_LIB }}
+            CACHE_BUSTER=${{ env.CACHE_BUSTER }}
+
+
+
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-test-push
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Determine Deployment Path and Tag
+        run: |
+          if [[ "${{ github.ref_name }}" == "master" ]]; then
+            echo "DEPLOY_PATH=apps/reference-service" >> $GITHUB_ENV
+          elif [[ "${{ github.ref_name }}" == "dev" ]]; then
+            echo "DEPLOY_PATH=apps/reference-service-dev" >> $GITHUB_ENV
+          else
+            echo "❌ Неизвестная ветка! Прерываем процесс."
+            exit 1
+          fi
+          echo "DEPLOY_TAG=${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: 🛠 Deploy Backend
+        run: |
+          echo "🚀 Деплой..."
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}
+            export DEPLOY_TAG=${{ github.sha }}
+            export DEPLOY_BRANCH=${GITHUB_REF##*/}
+
+            cd $DEPLOY_PATH || { echo "❌ Не удалось перейти в $DEPLOY_PATH"; exit 1; }
+
+            git pull origin \$DEPLOY_BRANCH || { echo "❌ git pull не удался"; exit 1; }
+
+            echo "\$DOCKERHUB_TOKEN" | docker login -u "\$DOCKERHUB_USERNAME" --password-stdin \
+              || { echo "❌ Docker login failed"; exit 1; }
+
+            docker pull \$DOCKERHUB_USERNAME/reference-service:\$DEPLOY_TAG \
+              || { echo "❌ Docker pull failed"; exit 1; }
+
+            if [ ! -f .env ]; then touch .env; fi
+            grep -q "^TAG=" .env && sed -i "s/^TAG=.*/TAG=\$DEPLOY_TAG/" .env || echo "TAG=\$DEPLOY_TAG" >> .env
+          EOF
+
+
+      - name: 🧬 Run Aerich Migrations
+        run: |
+          echo "📦 Применяем миграции..."
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
+            cd $DEPLOY_PATH || exit 1
+            export TAG=\$(grep ^TAG .env | cut -d '=' -f2)
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+
+            set -e
+
+            docker run --rm \
+              -v \$(pwd):/app \
+              -v \$(pwd)/.env:/app/.env \
+              -e PYTHONPATH=/app \
+              -e TORTOISE_ORM=app.database.config.TORTOISE_ORM \
+              --network reference_network \
+              \$DOCKERHUB_USERNAME/reference-service:\$TAG aerich upgrade || {
+                echo "⚠️ Aerich завершился с ошибкой"
+                exit 1
+            }
+          EOF
+
+
+
+      - name: 🚀 Start Backend
+        run: |
+          echo "🚀 Перезапускаем backend..."
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << EOF
+            cd $DEPLOY_PATH || exit 1
+
+            docker compose -f docker-compose.app.yml up -d --force-recreate web > /dev/null \
+              && echo "✅ Контейнер перезапущен" \
+              || { echo "❌ Контейнер не запустился"; exit 1; }
+
+            docker image prune -f > /dev/null
+          EOF
+
+
+  notify:
+    name: 📬 Telegram Notify
+    runs-on: ubuntu-latest
+    needs: [build-test-push, deploy]
+    if: always()
+    steps:
+      - name: 📬 Telegram Notification
+        run: |
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          REF_NAME="${{ github.ref_name }}"
+          SHA="${{ github.sha }}"
+          AUTHOR_USERNAME="${{ github.actor }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          DEPLOY_STATUS="${{ needs.deploy.result }}"
+
+          if [ "$DEPLOY_STATUS" != "success" ]; then
+            STATUS="🛑 *Ошибка деплоя*"
+            EXTRA_LINK="\n\n[🔍 Открыть GitHub Actions]($RUN_URL)"
+          else
+            STATUS="✅ Деплой *успешен*"
+            EXTRA_LINK=""
+          fi
+
+          CHAT_ID="${{ secrets.TELEGRAM_CHAT_ID }}"
+
+          ESCAPED_COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed -E 's/([*_`\[\]()])/\\\1/g')
+          TEXT="${STATUS}
+
+          📦 *Ветка:* \`$REF_NAME\`
+          🔖 *Тег:* \`$SHA\`
+          👤 *Автор деплоя:* [$AUTHOR_USERNAME](https://github.com/$AUTHOR_USERNAME)
+          📝 *Коммит:* $ESCAPED_COMMIT_MESSAGE${EXTRA_LINK}"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="$CHAT_ID" \
+            -d parse_mode=Markdown \
+            -d "text=$TEXT" || exit 1
+

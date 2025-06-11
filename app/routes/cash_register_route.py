@@ -1,0 +1,143 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
+from loguru import logger
+from tiacore_lib.handlers.dependency_handler import require_permission_in_context
+from tortoise.expressions import Q
+
+from app.database.models import CashRegister
+from app.pydantic_models.cash_register_models import (
+    CashRegisterCreateSchema,
+    CashRegisterEditSchema,
+    CashRegisterListResponseSchema,
+    CashRegisterResponseSchema,
+    CashRegisterSchema,
+    cash_register_filter_params,
+)
+
+cash_register_router = APIRouter()
+
+
+@cash_register_router.post(
+    "/add",
+    response_model=CashRegisterResponseSchema,
+    summary="Добавление новой кассы",
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_cash_register(
+    data: CashRegisterCreateSchema = Body(...),
+    _=Depends(require_permission_in_context("add_cash_register")),
+):
+    cash_register = await CashRegister.create(**data.model_dump(exclude_unset=True))
+    if not cash_register:
+        logger.error("Не удалось создать кассу")
+        raise HTTPException(status_code=500, detail="Не удалось создать кассу")
+
+    logger.success(f"касса {cash_register.name} ({cash_register.id}) успешно создана")
+    return {"cash_register_id": str(cash_register.id)}
+
+
+@cash_register_router.patch(
+    "/{cash_register_id}",
+    summary="Изменение кассы",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def edit_cash_register(
+    cash_register_id: UUID = Path(
+        ..., title="ID кассы", description="ID изменяемой кассы"
+    ),
+    data: CashRegisterEditSchema = Body(...),
+    _=Depends(require_permission_in_context("edit_cash_register")),
+):
+    logger.info(f"Обновление кассы {cash_register_id}")
+
+    cash_register = await CashRegister.filter(id=cash_register_id).first()
+    if not cash_register:
+        logger.warning(f"касса {cash_register_id} не найдена")
+        raise HTTPException(status_code=404, detail="касса не найдена")
+    await cash_register.update_from_dict(data.model_dump(exclude_unset=True))
+    await cash_register.save()
+
+
+@cash_register_router.delete(
+    "/{cash_register_id}",
+    summary="Удаление кассы",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_cash_register(
+    cash_register_id: UUID = Path(
+        ..., title="ID кассы", description="ID удаляемой кассы"
+    ),
+    _=Depends(require_permission_in_context("delete_cash_register")),
+):
+    cash_register = await CashRegister.filter(id=cash_register_id).first()
+    if not cash_register:
+        logger.warning(f"касса {cash_register_id} не найдена")
+        raise HTTPException(status_code=404, detail="касса не найдена")
+    await cash_register.delete()
+
+
+@cash_register_router.get(
+    "/all",
+    response_model=CashRegisterListResponseSchema,
+    summary="Получение списка кассов с фильтрацией",
+)
+async def get_cash_registers(
+    filters: dict = Depends(cash_register_filter_params),
+    _=Depends(require_permission_in_context("get_all_cash_registers")),
+):
+    query = Q()
+
+    if filters.get("cash_register_name"):
+        query &= Q(name__icontains=filters["cash_register_name"])
+    if filters.get("description"):
+        query &= Q(description__icontains=filters["description"])
+
+    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
+        filters.get('sort_by', 'name')
+    }"
+    page = filters.get("page", 1)
+    page_size = filters.get("page_size", 10)
+
+    total_count = await CashRegister.filter(query).count()
+
+    cash_registers = (
+        await CashRegister.filter(query)
+        .order_by(order_by)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .values("id", "name", "description")
+    )
+
+    return CashRegisterListResponseSchema(
+        total=total_count,
+        cash_registers=[
+            CashRegisterSchema(**cash_register) for cash_register in cash_registers
+        ],
+    )
+
+
+@cash_register_router.get(
+    "/{cash_register_id}", response_model=CashRegisterSchema, summary="Просмотр кассы"
+)
+async def get_cash_register(
+    cash_register_id: UUID = Path(
+        ..., title="ID кассы", description="ID просматриваемой кассы"
+    ),
+    _=Depends(require_permission_in_context("view_cash_register")),
+):
+    logger.info(f"Запрос на просмотр кассы: {cash_register_id}")
+    cash_register = (
+        await CashRegister.filter(id=cash_register_id)
+        .first()
+        .values("id", "name", "description")
+    )
+
+    if cash_register is None:
+        logger.warning(f"касса {cash_register_id} не найдена")
+        raise HTTPException(status_code=404, detail="Касса не найдена")
+
+    cash_register_schema = CashRegisterSchema(**cash_register)
+
+    logger.success(f"касса найдена: {cash_register_schema}")
+    return cash_register_schema
