@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
 class CashRegisterCreateSchema(CleanableBaseModel):
     name: str = Field(..., min_length=3, max_length=100, alias="cash_register_name")
     description: Optional[str] = Field(None)
+    company_id: UUID = Field(...)
 
     class Config:
         from_attributes = True
@@ -20,6 +22,7 @@ class CashRegisterEditSchema(CleanableBaseModel):
         None, min_length=3, max_length=100, alias="cash_register_name"
     )
     description: Optional[str] = Field(None)
+    company_id: Optional[UUID] = Field(None)
 
     class Config:
         from_attributes = True
@@ -30,6 +33,11 @@ class CashRegisterSchema(CleanableBaseModel):
     id: UUID = Field(..., alias="cash_register_id")
     name: str = Field(..., alias="cash_register_name")
     description: Optional[str] = Field(None)
+    company_id: UUID = Field(...)
+    created_at: datetime.datetime = Field(...)
+    created_by: UUID = Field(...)
+    modified_by: UUID = Field(...)
+    modified_at: datetime.datetime = Field(...)
 
     class Config:
         from_attributes = True
@@ -50,6 +58,7 @@ def cash_register_filter_params(
         None, description="Фильтр по названию промпта"
     ),
     description: Optional[str] = Query(None, description="Фильтр по тексту"),
+    company_id: Optional[UUID] = Query(None),
     sort_by: Optional[str] = Query("name", description="Поле сортировки"),
     order: Optional[str] = Query("asc", description="asc / desc"),
     page: Optional[int] = Query(1, ge=1),
@@ -57,6 +66,7 @@ def cash_register_filter_params(
 ):
     return {
         "cash_register_name": cash_register_name,
+        "company_id": company_id,
         "description": description,
         "sort_by": sort_by,
         "order": order,

@@ -55,6 +55,12 @@ class Storage(Model):
     id = fields.UUIDField(pk=True, default=uuid.uuid4)
     name = fields.CharField(max_length=255)
     description = fields.CharField(max_length=255, null=True)
+    company_id = fields.UUIDField()
+
+    created_at = fields.DatetimeField(auto_now_add=True)
+    created_by = fields.UUIDField()
+    modified_at = fields.DatetimeField(auto_now=True)
+    modified_by = fields.UUIDField()
 
     class Meta:
         table = "storages"
@@ -64,6 +70,12 @@ class CashRegister(Model):
     id = fields.UUIDField(pk=True, default=uuid.uuid4)
     name = fields.CharField(max_length=255)
     description = fields.CharField(max_length=255, null=True)
+    company_id = fields.UUIDField()
+
+    created_at = fields.DatetimeField(auto_now_add=True)
+    created_by = fields.UUIDField()
+    modified_at = fields.DatetimeField(auto_now=True)
+    modified_by = fields.UUIDField()
 
     class Meta:
         table = "cash_registers"

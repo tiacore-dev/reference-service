@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 
@@ -8,9 +10,7 @@ from app.database.models import CashRegister
 async def test_add_cash_register(test_app: AsyncClient, jwt_token_admin: dict):
     """Тест добавления нового промпта."""
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-    data = {
-        "cash_register_name": "Test CashRegister",
-    }
+    data = {"cash_register_name": "Test CashRegister", "company_id": str(uuid4())}
 
     response = await test_app.post(
         "/api/cash-registers/add", headers=headers, json=data

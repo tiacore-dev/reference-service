@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
 class StorageCreateSchema(CleanableBaseModel):
     name: str = Field(..., min_length=3, max_length=100, alias="storage_name")
     description: Optional[str] = Field(None)
+    company_id: UUID = Field(...)
 
     class Config:
         from_attributes = True
@@ -20,6 +22,7 @@ class StorageEditSchema(CleanableBaseModel):
         None, min_length=3, max_length=100, alias="storage_name"
     )
     description: Optional[str] = Field(None)
+    company_id: Optional[UUID] = Field(None)
 
     class Config:
         from_attributes = True
@@ -30,6 +33,11 @@ class StorageSchema(CleanableBaseModel):
     id: UUID = Field(..., alias="storage_id")
     name: str = Field(..., alias="storage_name")
     description: Optional[str] = Field(None)
+    company_id: UUID = Field(...)
+    created_at: datetime.datetime = Field(...)
+    created_by: UUID = Field(...)
+    modified_by: UUID = Field(...)
+    modified_at: datetime.datetime = Field(...)
 
     class Config:
         from_attributes = True
@@ -47,6 +55,7 @@ class StorageListResponseSchema(CleanableBaseModel):
 
 def storage_filter_params(
     storage_name: Optional[str] = Query(None, description="Фильтр по названию промпта"),
+    company_id: Optional[str] = Query(None),
     description: Optional[str] = Query(None, description="Фильтр по тексту"),
     sort_by: Optional[str] = Query("name", description="Поле сортировки"),
     order: Optional[str] = Query("asc", description="asc / desc"),
@@ -56,6 +65,7 @@ def storage_filter_params(
     return {
         "storage_name": storage_name,
         "description": description,
+        "company_id": company_id,
         "sort_by": sort_by,
         "order": order,
         "page": page,

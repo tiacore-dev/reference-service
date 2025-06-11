@@ -26,9 +26,13 @@ storage_router = APIRouter()
 )
 async def add_storage(
     data: StorageCreateSchema = Body(...),
-    _=Depends(require_permission_in_context("add_storage")),
+    context=Depends(require_permission_in_context("add_storage")),
 ):
-    storage = await Storage.create(**data.model_dump(exclude_unset=True))
+    storage = await Storage.create(
+        created_by=context["user_id"],
+        modified_by=context["user_id"],
+        **data.model_dump(exclude_unset=True),
+    )
     if not storage:
         logger.error("Не удалось создать склад")
         raise HTTPException(status_code=500, detail="Не удалось создать склад")
@@ -47,7 +51,7 @@ async def edit_storage(
         ..., title="ID склада", description="ID изменяемого склада"
     ),
     data: StorageEditSchema = Body(...),
-    _=Depends(require_permission_in_context("edit_storage")),
+    context=Depends(require_permission_in_context("edit_storage")),
 ):
     logger.info(f"Обновление склада {storage_id}")
 
@@ -55,6 +59,7 @@ async def edit_storage(
     if not storage:
         logger.warning(f"склад {storage_id} не найден")
         raise HTTPException(status_code=404, detail="Склад не найден")
+    storage.modified_by = context["user_id"]
     await storage.update_from_dict(data.model_dump(exclude_unset=True))
     await storage.save()
 
@@ -104,7 +109,16 @@ async def get_storages(
         .order_by(order_by)
         .offset((page - 1) * page_size)
         .limit(page_size)
-        .values("id", "name", "description")
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+        )
     )
 
     return StorageListResponseSchema(
@@ -124,7 +138,18 @@ async def get_storage(
 ):
     logger.info(f"Запрос на просмотр склады: {storage_id}")
     storage = (
-        await Storage.filter(id=storage_id).first().values("id", "name", "description")
+        await Storage.filter(id=storage_id)
+        .first()
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+        )
     )
 
     if storage is None:

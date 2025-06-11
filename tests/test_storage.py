@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 
@@ -8,9 +10,7 @@ from app.database.models import Storage
 async def test_add_storage(test_app: AsyncClient, jwt_token_admin: dict):
     """Тест добавления нового промпта."""
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-    data = {
-        "storage_name": "Test Storage",
-    }
+    data = {"storage_name": "Test Storage", "company_id": str(uuid4())}
 
     response = await test_app.post("/api/storages/add", headers=headers, json=data)
     assert response.status_code == 201, (
@@ -30,7 +30,9 @@ async def test_edit_storage(
 ):
     """Тест редактирования промпта."""
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-    data = {"storage_name": "Updated Storage"}
+    data = {
+        "storage_name": "Updated Storage",
+    }
 
     response = await test_app.patch(
         f"/api/storages/{seed_storage.id}", headers=headers, json=data

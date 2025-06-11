@@ -26,9 +26,13 @@ cash_register_router = APIRouter()
 )
 async def add_cash_register(
     data: CashRegisterCreateSchema = Body(...),
-    _=Depends(require_permission_in_context("add_cash_register")),
+    context=Depends(require_permission_in_context("add_cash_register")),
 ):
-    cash_register = await CashRegister.create(**data.model_dump(exclude_unset=True))
+    cash_register = await CashRegister.create(
+        created_by=context["user_id"],
+        modified_by=context["user_id"],
+        **data.model_dump(exclude_unset=True),
+    )
     if not cash_register:
         logger.error("Не удалось создать кассу")
         raise HTTPException(status_code=500, detail="Не удалось создать кассу")
@@ -47,7 +51,7 @@ async def edit_cash_register(
         ..., title="ID кассы", description="ID изменяемой кассы"
     ),
     data: CashRegisterEditSchema = Body(...),
-    _=Depends(require_permission_in_context("edit_cash_register")),
+    context=Depends(require_permission_in_context("edit_cash_register")),
 ):
     logger.info(f"Обновление кассы {cash_register_id}")
 
@@ -55,7 +59,9 @@ async def edit_cash_register(
     if not cash_register:
         logger.warning(f"касса {cash_register_id} не найдена")
         raise HTTPException(status_code=404, detail="касса не найдена")
+    cash_register.modified_by = context["user_id"]
     await cash_register.update_from_dict(data.model_dump(exclude_unset=True))
+
     await cash_register.save()
 
 
@@ -106,7 +112,16 @@ async def get_cash_registers(
         .order_by(order_by)
         .offset((page - 1) * page_size)
         .limit(page_size)
-        .values("id", "name", "description")
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+        )
     )
 
     return CashRegisterListResponseSchema(
@@ -130,7 +145,16 @@ async def get_cash_register(
     cash_register = (
         await CashRegister.filter(id=cash_register_id)
         .first()
-        .values("id", "name", "description")
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+        )
     )
 
     if cash_register is None:
