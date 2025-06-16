@@ -11,7 +11,7 @@ services:
     - reference_network
 
   web:
-    image: ${DOCKERHUB_USERNAME}/reference-backend:${TAG}
+    image: ${DOCKERHUB_USERNAME}/reference-service:${TAG}
     container_name: reference
     restart: always
     ports:
