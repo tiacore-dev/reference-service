@@ -3,6 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from loguru import logger
 from tiacore_lib.handlers.dependency_handler import require_permission_in_context
+from tiacore_lib.handlers.permissions_handler import (
+    with_permission_and_company_from_body_check,
+)
+from tiacore_lib.utils.validate_helpers import validate_company_access
 from tortoise.expressions import Q
 
 from app.database.models import Storage
@@ -26,7 +30,7 @@ storage_router = APIRouter()
 )
 async def add_storage(
     data: StorageCreateSchema = Body(...),
-    context=Depends(require_permission_in_context("add_storage")),
+    context=Depends(with_permission_and_company_from_body_check("add_storage")),
 ):
     storage = await Storage.create(
         created_by=context["user_id"],
@@ -51,7 +55,7 @@ async def edit_storage(
         ..., title="ID склада", description="ID изменяемого склада"
     ),
     data: StorageEditSchema = Body(...),
-    context=Depends(require_permission_in_context("edit_storage")),
+    context=Depends(with_permission_and_company_from_body_check("edit_storage")),
 ):
     logger.info(f"Обновление склада {storage_id}")
 
@@ -59,6 +63,7 @@ async def edit_storage(
     if not storage:
         logger.warning(f"склад {storage_id} не найден")
         raise HTTPException(status_code=404, detail="Склад не найден")
+    validate_company_access(storage, context, "складом")
     storage.modified_by = context["user_id"]
     await storage.update_from_dict(data.model_dump(exclude_unset=True))
     await storage.save()
@@ -71,12 +76,13 @@ async def edit_storage(
 )
 async def delete_storage(
     storage_id: UUID = Path(..., title="ID склада", description="ID удаляемого склада"),
-    _=Depends(require_permission_in_context("delete_storage")),
+    context=Depends(require_permission_in_context("delete_storage")),
 ):
     storage = await Storage.filter(id=storage_id).first()
     if not storage:
         logger.warning(f"склад {storage_id} не найден")
         raise HTTPException(status_code=404, detail="склад не найден")
+    validate_company_access(storage, context, "складом")
     await storage.delete()
 
 
@@ -87,10 +93,11 @@ async def delete_storage(
 )
 async def get_storages(
     filters: dict = Depends(storage_filter_params),
-    _=Depends(require_permission_in_context("get_all_storages")),
+    context=Depends(require_permission_in_context("get_all_storages")),
 ):
     query = Q()
-
+    if not context["is_superadmin"]:
+        query &= Q(company_id=context["company_id"])
     if filters.get("storage_name"):
         query &= Q(name__icontains=filters["storage_name"])
     if filters.get("description"):
@@ -134,7 +141,7 @@ async def get_storage(
     storage_id: UUID = Path(
         ..., title="ID склады", description="ID просматриваемой склады"
     ),
-    _=Depends(require_permission_in_context("view_storage")),
+    context=Depends(require_permission_in_context("view_storage")),
 ):
     logger.info(f"Запрос на просмотр склады: {storage_id}")
     storage = (
@@ -151,7 +158,7 @@ async def get_storage(
             "company_id",
         )
     )
-
+    validate_company_access(storage, context, "складом")
     if storage is None:
         logger.warning(f"склада {storage_id} не найдена")
         raise HTTPException(status_code=404, detail="склада не найдена")

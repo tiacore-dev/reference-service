@@ -3,6 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from loguru import logger
 from tiacore_lib.handlers.dependency_handler import require_permission_in_context
+from tiacore_lib.handlers.permissions_handler import (
+    with_permission_and_company_from_body_check,
+)
+from tiacore_lib.utils.validate_helpers import validate_company_access
 from tortoise.expressions import Q
 
 from app.database.models import CashRegister
@@ -26,7 +30,7 @@ cash_register_router = APIRouter()
 )
 async def add_cash_register(
     data: CashRegisterCreateSchema = Body(...),
-    context=Depends(require_permission_in_context("add_cash_register")),
+    context=Depends(with_permission_and_company_from_body_check("add_cash_register")),
 ):
     cash_register = await CashRegister.create(
         created_by=context["user_id"],
@@ -51,7 +55,7 @@ async def edit_cash_register(
         ..., title="ID кассы", description="ID изменяемой кассы"
     ),
     data: CashRegisterEditSchema = Body(...),
-    context=Depends(require_permission_in_context("edit_cash_register")),
+    context=Depends(with_permission_and_company_from_body_check("edit_cash_register")),
 ):
     logger.info(f"Обновление кассы {cash_register_id}")
 
@@ -59,6 +63,8 @@ async def edit_cash_register(
     if not cash_register:
         logger.warning(f"касса {cash_register_id} не найдена")
         raise HTTPException(status_code=404, detail="касса не найдена")
+    validate_company_access(cash_register, context, "кассой")
+
     cash_register.modified_by = context["user_id"]
     await cash_register.update_from_dict(data.model_dump(exclude_unset=True))
 
@@ -74,12 +80,13 @@ async def delete_cash_register(
     cash_register_id: UUID = Path(
         ..., title="ID кассы", description="ID удаляемой кассы"
     ),
-    _=Depends(require_permission_in_context("delete_cash_register")),
+    context=Depends(require_permission_in_context("delete_cash_register")),
 ):
     cash_register = await CashRegister.filter(id=cash_register_id).first()
     if not cash_register:
         logger.warning(f"касса {cash_register_id} не найдена")
         raise HTTPException(status_code=404, detail="касса не найдена")
+    validate_company_access(cash_register, context, "кассой")
     await cash_register.delete()
 
 
@@ -90,10 +97,11 @@ async def delete_cash_register(
 )
 async def get_cash_registers(
     filters: dict = Depends(cash_register_filter_params),
-    _=Depends(require_permission_in_context("get_all_cash_registers")),
+    context=Depends(require_permission_in_context("get_all_cash_registers")),
 ):
     query = Q()
-
+    if not context["is_superadmin"]:
+        query &= Q(company_id=context["company_id"])
     if filters.get("cash_register_name"):
         query &= Q(name__icontains=filters["cash_register_name"])
     if filters.get("description"):
@@ -139,7 +147,7 @@ async def get_cash_register(
     cash_register_id: UUID = Path(
         ..., title="ID кассы", description="ID просматриваемой кассы"
     ),
-    _=Depends(require_permission_in_context("view_cash_register")),
+    context=Depends(require_permission_in_context("view_cash_register")),
 ):
     logger.info(f"Запрос на просмотр кассы: {cash_register_id}")
     cash_register = (
@@ -160,6 +168,7 @@ async def get_cash_register(
     if cash_register is None:
         logger.warning(f"касса {cash_register_id} не найдена")
         raise HTTPException(status_code=404, detail="Касса не найдена")
+    validate_company_access(cash_register, context, "кассой")
 
     cash_register_schema = CashRegisterSchema(**cash_register)
 
