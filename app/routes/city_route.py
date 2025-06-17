@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from loguru import logger
+from tiacore_lib.handlers.auth_handler import require_superadmin
 from tiacore_lib.handlers.dependency_handler import require_permission_in_context
 from tortoise.expressions import Q
 
@@ -26,7 +27,7 @@ city_router = APIRouter()
 )
 async def add_city(
     data: CityCreateSchema = Body(...),
-    _=Depends(require_permission_in_context("add_city")),
+    _=Depends(require_superadmin),
 ):
     city = await City.create(**data.model_dump(exclude_unset=True))
     if not city:
@@ -45,7 +46,7 @@ async def add_city(
 async def edit_city(
     city_id: UUID = Path(..., title="ID города", description="ID изменяемого города"),
     data: CityEditSchema = Body(...),
-    _=Depends(require_permission_in_context("edit_city")),
+    _=Depends(require_superadmin),
 ):
     logger.info(f"Обновление города {city_id}")
 
