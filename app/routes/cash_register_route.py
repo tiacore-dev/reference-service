@@ -22,6 +22,7 @@ from app.pydantic_models.cash_register_models import (
 cash_register_router = APIRouter()
 
 
+# Чисто для коммита
 @cash_register_router.post(
     "/add",
     response_model=CashRegisterResponseSchema,
