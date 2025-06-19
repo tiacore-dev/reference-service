@@ -27,6 +27,7 @@ from app.database.models import (
     LegalEntityType,
 )
 from app.dependencies.permissions import with_permission_and_entity_company_check
+from app.pydantic_models.entity_models import LegalEntityByIdsRequestSchema
 from app.utils.db_helpers import get_entities_by_query
 
 entity_router = APIRouter()
@@ -233,6 +234,35 @@ async def get_legal_entities(
 
     return LegalEntityListResponseSchema(
         total=total_count,
+        entities=[LegalEntitySchema(**entity) for entity in entities],
+    )
+
+
+@entity_router.post(
+    "/by-ids",
+    response_model=LegalEntityListResponseSchema,
+    summary="Получить список юридических лиц по списку ID",
+)
+async def get_legal_entities_by_ids(
+    data: LegalEntityByIdsRequestSchema,
+    _: dict = Depends(get_current_user),  # или with_permission, если хочешь
+):
+    entities = await LegalEntity.filter(id__in=data.ids).values(
+        "id",
+        "full_name",
+        "short_name",
+        "inn",
+        "kpp",
+        "opf",
+        "vat_rate",
+        "address",
+        "entity_type_id",
+        "signer",
+        "ogrn",
+    )
+
+    return LegalEntityListResponseSchema(
+        total=len(entities),
         entities=[LegalEntitySchema(**entity) for entity in entities],
     )
 
