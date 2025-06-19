@@ -205,6 +205,7 @@ async def delete_legal_entity(
     summary="Получение списка юридических лиц",
 )
 async def get_legal_entities(
+    company_id: Optional[UUID] = Query(None),
     filters: dict = Depends(legal_entity_filter_params),
     context: dict = Depends(require_permission_in_context("get_all_legal_entities")),
 ):
@@ -217,7 +218,7 @@ async def get_legal_entities(
 
     else:
         related_entity_ids = await EntityCompanyRelation.filter(
-            company_id=context["company"]
+            company_id=company_id
         ).values_list("legal_entity_id", flat=True)
 
         if not related_entity_ids:
@@ -242,7 +243,8 @@ async def get_legal_entities(
     summary="Получение списка buyers",
 )
 async def get_buyers(
-    context: dict = Depends(require_permission_in_context("get_buyers")),
+    company_id: Optional[UUID] = Query(None),
+    context: dict = Depends(get_current_user),
 ):
     try:
         if context["is_superadmin"]:
@@ -251,7 +253,7 @@ async def get_buyers(
             ).values_list("legal_entity_id", flat=True)
         else:
             related_entity_ids = await EntityCompanyRelation.filter(
-                company_id=context["company"], relation_type="buyer"
+                company_id=company_id, relation_type="buyer"
             ).values_list("legal_entity_id", flat=True)
 
         if not related_entity_ids:
@@ -277,7 +279,8 @@ async def get_buyers(
     summary="Получение списка sellers",
 )
 async def get_sellers(
-    context: dict = Depends(require_permission_in_context("get_sellers")),
+    company_id: Optional[UUID] = Query(None),
+    context: dict = Depends(get_current_user),
 ):
     try:
         # Ищем все legal_entity_id, связанные с этими компаниями
@@ -287,7 +290,7 @@ async def get_sellers(
             ).values_list("legal_entity_id", flat=True)
         else:
             related_entity_ids = await EntityCompanyRelation.filter(
-                company_id=context["company"], relation_type="seller"
+                company_id=company_id, relation_type="seller"
             ).values_list("legal_entity_id", flat=True)
 
         if not related_entity_ids:
@@ -312,7 +315,7 @@ async def get_sellers(
 )
 async def get_by_company(
     company_id: UUID = Query(..., description="ID компании"),
-    _: dict = Depends(require_permission_in_context("get_by_company")),
+    _: dict = Depends(get_current_user),
 ):
     try:
         related_entity_ids = await EntityCompanyRelation.filter(
@@ -369,7 +372,7 @@ async def get_legal_entity_by_inn_kpp(
 )
 async def get_legal_entity(
     legal_entity_id: UUID,
-    context: dict = Depends(require_permission_in_context("view_legal_entity")),
+    context: dict = Depends(get_current_user),
 ):
     entity = (
         await LegalEntity.filter(id=legal_entity_id)
