@@ -26,7 +26,6 @@ from app.database.models import (
     LegalEntity,
     LegalEntityType,
 )
-from app.dependencies.permissions import with_permission_and_entity_company_check
 from app.pydantic_models.entity_models import LegalEntityByIdsRequestSchema
 from app.utils.db_helpers import get_entities_by_query
 
@@ -41,7 +40,7 @@ entity_router = APIRouter()
 )
 async def add_legal_entity(
     data: LegalEntityCreateSchema,
-    context=Depends(require_permission_in_context("add_legal_entity")),
+    context=Depends(get_current_user),
 ):
     entity_type = None
 
@@ -100,7 +99,7 @@ async def add_legal_entity(
 )
 async def add_legal_entity_by_inn(
     data: LegalEntityINNCreateSchema,
-    context=Depends(require_permission_in_context("add_legal_entity_by_inn")),
+    context=Depends(get_current_user),
 ):
     if not context.get("is_superadmin"):
         if data.company_id not in context["companies"]:
@@ -166,7 +165,7 @@ async def add_legal_entity_by_inn(
 async def update_legal_entity(
     legal_entity_id: UUID,
     data: LegalEntityEditSchema,
-    _=with_permission_and_entity_company_check("edit_legal_entity"),
+    _=Depends(get_current_user),
 ):
     entity = await LegalEntity.filter(id=legal_entity_id).first()
     if not entity:
@@ -190,7 +189,7 @@ async def update_legal_entity(
 )
 async def delete_legal_entity(
     legal_entity_id: UUID,
-    _=with_permission_and_entity_company_check("delete_legal_entity"),
+    _=Depends(get_current_user),
 ):
     entity = await LegalEntity.filter(id=legal_entity_id).first()
     if not entity:
