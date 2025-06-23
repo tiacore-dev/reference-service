@@ -145,13 +145,13 @@ async def add_legal_entity_by_inn(
         ogrn=org_data["@attributes"]["ОГРН"],
         address=format_address(addr),
     )
-
-    await EntityCompanyRelation.create(
-        company_id=data.company_id,
-        legal_entity=entity,
-        relation_type=data.relation_type,
-        description=data.description,
-    )
+    if data.relation_type:
+        await EntityCompanyRelation.create(
+            company_id=data.company_id,
+            legal_entity=entity,
+            relation_type=data.relation_type,
+            description=data.description,
+        )
 
     return LegalEntityResponseSchema(legal_entity_id=entity.id)
 
