@@ -4,7 +4,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from tiacore_lib.handlers.auth_handler import get_current_user
-from tiacore_lib.handlers.dependency_handler import require_permission_in_context
 from tiacore_lib.pydantic_models.legal_entity_models import (
     LegalEntityCreateSchema,
     LegalEntityEditSchema,
@@ -207,7 +206,7 @@ async def delete_legal_entity(
 async def get_legal_entities(
     company_id: Optional[UUID] = Query(None),
     filters: dict = Depends(legal_entity_filter_params),
-    context: dict = Depends(require_permission_in_context("get_all_legal_entities")),
+    context: dict = Depends(get_current_user),
 ):
     query = Q()
 
