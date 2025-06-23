@@ -15,7 +15,8 @@ from tortoise import Tortoise
 from app.config import TestConfig, _load_settings
 from app.routes import register_routes
 from metrics.logger import setup_logger
-from metrics.tracer import init_tracer
+
+# from metrics.tracer import init_tracer
 
 
 def provide_settings(config_name: ConfigName):
@@ -67,8 +68,8 @@ def create_app(config_name: ConfigName) -> FastAPI:
         allow_headers=["*"],
     )
 
-    if config_name == "Production":
-        init_tracer(app)
+    # if config_name == "Production":
+    #     init_tracer(app)
 
     register_routes(app)
 
