@@ -43,11 +43,11 @@ async def add_legal_entity(
 ):
     entity_type = None
 
-    if not context.get("is_superadmin"):
-        if data.company_id not in context["companies"]:
-            raise HTTPException(
-                status_code=403, detail="Вы не имеете доступа к этой компании"
-            )
+    # if not context.get("is_superadmin"):
+    #     if data.company_id not in context["companies"]:
+    #         raise HTTPException(
+    #             status_code=403, detail="Вы не имеете доступа к этой компании"
+    #         )
     if data.entity_type_id is not None:
         await validate_exists(LegalEntityType, data.entity_type_id, "LegalEntityType")
 
@@ -100,11 +100,11 @@ async def add_legal_entity_by_inn(
     data: LegalEntityINNCreateSchema,
     context=Depends(get_current_user),
 ):
-    if not context.get("is_superadmin"):
-        if data.company_id not in context["companies"]:
-            raise HTTPException(
-                status_code=403, detail="Вы не имеете доступа к этой компании"
-            )
+    # if not context.get("is_superadmin"):
+    #     if data.company_id not in context["companies"]:
+    #         raise HTTPException(
+    #             status_code=403, detail="Вы не имеете доступа к этой компании"
+    #         )
 
     if data.kpp:
         existing_entity = await LegalEntity.exists(inn=data.inn, kpp=data.kpp)
