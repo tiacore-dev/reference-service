@@ -82,13 +82,13 @@ async def add_legal_entity(
         entity_type=entity_type,
         signer=data.signer,
     )
-
-    await EntityCompanyRelation.create(
-        company_id=data.company_id,
-        legal_entity=entity,
-        relation_type=data.relation_type,
-        description=data.description,
-    )
+    if data.relation_type:
+        await EntityCompanyRelation.create(
+            company_id=data.company_id,
+            legal_entity=entity,
+            relation_type=data.relation_type,
+            description=data.description,
+        )
     return LegalEntityResponseSchema(legal_entity_id=entity.id)
 
 
