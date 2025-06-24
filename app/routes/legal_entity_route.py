@@ -117,6 +117,7 @@ async def add_legal_entity_by_inn(
         )
 
     entity_data = await fetch_egrul_data(data.inn)
+    logger.debug(f"Полученный ответ о юр лице: {entity_data}")
     org_data = entity_data["СвЮЛ"]
 
     # Валидация КПП: если указан, должен быть среди филиалов
