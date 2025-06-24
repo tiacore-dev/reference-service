@@ -25,7 +25,6 @@ from app.database.models import (
     LegalEntity,
     LegalEntityType,
 )
-from app.pydantic_models.entity_models import LegalEntityByIdsRequestSchema
 from app.utils.db_helpers import get_entities_by_query
 
 entity_router = APIRouter()
@@ -214,7 +213,6 @@ async def get_legal_entities(
         company_filter = filters.get("company_id")
         if company_filter:
             query &= Q(entity_company_relations__company_id=company_filter)
-
         else:
             related_entity_ids = await EntityCompanyRelation.filter(
                 company_id=company_id
@@ -225,10 +223,36 @@ async def get_legal_entities(
 
             query &= Q(id__in=related_entity_ids)
 
-    if filters.get("entity_type_id"):
-        query &= Q(entity_type_id=filters["entity_type_id"])
+    if filters.get("entity_type"):
+        query &= Q(entity_type_id=filters["entity_type"])
 
-    total_count, entities = await get_entities_by_query(query)
+    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
+        filters.get('sort_by', 'name')
+    }"
+    page = filters.get("page", 1)
+    page_size = filters.get("page_size", 10)
+    offset = (page - 1) * page_size
+
+    total_count = await LegalEntity.filter(query).count()
+    entities = (
+        await LegalEntity.filter(query)
+        .order_by(order_by)
+        .offset(offset)
+        .limit(page_size)
+        .values(
+            "id",
+            "full_name",
+            "short_name",
+            "inn",
+            "kpp",
+            "opf",
+            "vat_rate",
+            "address",
+            "entity_type_id",
+            "signer",
+            "ogrn",
+        )
+    )
 
     return LegalEntityListResponseSchema(
         total=total_count,
@@ -236,31 +260,56 @@ async def get_legal_entities(
     )
 
 
+# если есть
+
+
 @entity_router.post(
     "/by-ids",
     response_model=LegalEntityListResponseSchema,
-    summary="Получить список юридических лиц по списку ID",
+    summary="Получить список юридических лиц по списку ID с фильтрацией и пагинацией",
 )
 async def get_legal_entities_by_ids(
-    data: LegalEntityByIdsRequestSchema,
-    _: dict = Depends(get_current_user),  # или with_permission, если хочешь
+    filters: dict = Depends(legal_entity_filter_params),
+    _: dict = Depends(get_current_user),
 ):
-    entities = await LegalEntity.filter(id__in=data.ids).values(
-        "id",
-        "full_name",
-        "short_name",
-        "inn",
-        "kpp",
-        "opf",
-        "vat_rate",
-        "address",
-        "entity_type_id",
-        "signer",
-        "ogrn",
+    if not filters.get("ids"):
+        return LegalEntityListResponseSchema(total=0, entities=[])
+
+    query = Q(id__in=filters.get("ids"))
+
+    if filters.get("entity_type"):
+        query &= Q(entity_type_id=filters["entity_type"])
+
+    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
+        filters.get('sort_by', 'name')
+    }"
+    page = filters.get("page", 1)
+    page_size = filters.get("page_size", 10)
+    offset = (page - 1) * page_size
+
+    total_count = await LegalEntity.filter(query).count()
+    entities = (
+        await LegalEntity.filter(query)
+        .order_by(order_by)
+        .offset(offset)
+        .limit(page_size)
+        .values(
+            "id",
+            "full_name",
+            "short_name",
+            "inn",
+            "kpp",
+            "opf",
+            "vat_rate",
+            "address",
+            "entity_type_id",
+            "signer",
+            "ogrn",
+        )
     )
 
     return LegalEntityListResponseSchema(
-        total=len(entities),
+        total=total_count,
         entities=[LegalEntitySchema(**entity) for entity in entities],
     )
 
