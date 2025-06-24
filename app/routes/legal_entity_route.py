@@ -25,6 +25,7 @@ from app.database.models import (
     LegalEntity,
     LegalEntityType,
 )
+from app.pydantic_models.entity_models import LegalEntityByIdsRequestSchema
 from app.utils.db_helpers import get_entities_by_query
 
 entity_router = APIRouter()
@@ -311,16 +312,17 @@ async def get_legal_entities(
     summary="Получить список юридических лиц по списку ID с фильтрацией и пагинацией",
 )
 async def get_legal_entities_by_ids(
+    data: LegalEntityByIdsRequestSchema,
     filters: dict = Depends(legal_entity_filter_params),
     _: dict = Depends(get_current_user),
 ):
-    if not filters.get("ids"):
+    if not data.ids:
         return LegalEntityListResponseSchema(total=0, entities=[])
 
-    query = Q(id__in=filters.get("ids"))
+    query = Q(id__in=data.ids)
 
-    if filters.get("entity_type"):
-        query &= Q(entity_type_id=filters["entity_type"])
+    if filters.get("entity_type_id"):
+        query &= Q(entity_type_id=filters["entity_type_id"])
 
     sort_by = filters.get("sort_by", "short_name")
 
