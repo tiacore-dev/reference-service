@@ -19,7 +19,7 @@ class LegalEntity(Model):
     short_name = fields.CharField(max_length=255)
     inn = fields.CharField(max_length=12)
     kpp = fields.CharField(max_length=9, null=True)
-    ogrn = fields.CharField(max_length=13, unique=True)
+    ogrn = fields.CharField(max_length=15, unique=True)
     vat_rate = fields.IntField(default=0)
     address = fields.CharField(max_length=255, null=True)
     opf = fields.CharField(max_length=255, null=True)
