@@ -117,34 +117,65 @@ async def add_legal_entity_by_inn(
         )
 
     entity_data = await fetch_egrul_data(data.inn)
-    logger.debug(f"Полученный ответ о юр лице: {entity_data}")
-    org_data = entity_data["СвЮЛ"]
+    # logger.debug(f"Полученный ответ о юр лице: {entity_data}")
+    if entity_data["СвЮЛ"]:
+        org_data = entity_data["СвЮЛ"]
 
-    # Валидация КПП: если указан, должен быть среди филиалов
-    if data.kpp:
-        branch_kpps = [
-            филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
-            for филиал in org_data.get("СвПодразд", {}).get("СвФилиал", [])
-            if филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
-        ]
-        if data.kpp not in branch_kpps and data.kpp != org_data["@attributes"].get(
-            "КПП"
-        ):
-            raise HTTPException(
-                status_code=404,
-                detail=f"""КПП {data.kpp} не найден ни у
-                  головной организации, ни среди филиалов""",
+        # Валидация КПП: если указан, должен быть среди филиалов
+        if data.kpp:
+            branch_kpps = [
+                филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
+                for филиал in org_data.get("СвПодразд", {}).get("СвФилиал", [])
+                if филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
+            ]
+            if data.kpp not in branch_kpps and data.kpp != org_data["@attributes"].get(
+                "КПП"
+            ):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"""КПП {data.kpp} не найден ни у
+                    головной организации, ни среди филиалов""",
+                )
+
+        addr = org_data["СвАдресЮЛ"].get("АдресРФ") or {}
+
+        entity = await LegalEntity.create(
+            short_name=org_data["СвНаимЮЛ"]["СвНаимЮЛСокр"]["@attributes"]["НаимСокр"],
+            inn=org_data["@attributes"]["ИНН"],
+            kpp=data.kpp or org_data["@attributes"]["КПП"],
+            ogrn=org_data["@attributes"]["ОГРН"],
+            address=format_address(addr),
+        )
+    elif entity_data.get("СвИП"):
+        org_data = entity_data["СвИП"]
+        fio_data = org_data.get("СвФЛ", {}).get("ФИОРус", {}).get("@attributes", {})
+
+        # Собираем ФИО как наименование
+        full_name = " ".join(
+            filter(
+                None,
+                [
+                    fio_data.get("Фамилия"),
+                    fio_data.get("Имя"),
+                    fio_data.get("Отчество"),
+                ],
             )
+        )
 
-    addr = org_data["СвАдресЮЛ"].get("АдресРФ") or {}
+        addr = entity_data.get("СвРегОрг", {}).get("@attributes", {}).get("АдрРО") or ""
 
-    entity = await LegalEntity.create(
-        short_name=org_data["СвНаимЮЛ"]["СвНаимЮЛСокр"]["@attributes"]["НаимСокр"],
-        inn=org_data["@attributes"]["ИНН"],
-        kpp=data.kpp or org_data["@attributes"]["КПП"],
-        ogrn=org_data["@attributes"]["ОГРН"],
-        address=format_address(addr),
-    )
+        entity = await LegalEntity.create(
+            short_name=full_name,
+            inn=org_data["@attributes"].get("ИННФЛ"),
+            kpp=data.kpp,
+            ogrn=org_data["@attributes"].get("ОГРНИП"),
+            address=addr,
+        )
+    else:
+        raise HTTPException(
+            status_code=400, detail="Организация не является ни Юр Лицом, ни ИП"
+        )
+
     if data.relation_type:
         await EntityCompanyRelation.create(
             company_id=data.company_id,
