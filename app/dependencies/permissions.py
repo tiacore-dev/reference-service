@@ -29,7 +29,7 @@ def with_permission_and_entity_company_check(permission: str):
 
         return context
 
-    return Depends(dependency)
+    return dependency
 
 
 def with_permission_and_legal_entity_company_check(permission: str):
@@ -52,4 +52,4 @@ def with_permission_and_legal_entity_company_check(permission: str):
 
         return context
 
-    return Depends(dependency)
+    return dependency

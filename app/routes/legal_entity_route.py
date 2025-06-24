@@ -215,15 +215,15 @@ async def get_legal_entities(
         if company_filter:
             query &= Q(entity_company_relations__company_id=company_filter)
 
-    else:
-        related_entity_ids = await EntityCompanyRelation.filter(
-            company_id=company_id
-        ).values_list("legal_entity_id", flat=True)
+        else:
+            related_entity_ids = await EntityCompanyRelation.filter(
+                company_id=company_id
+            ).values_list("legal_entity_id", flat=True)
 
-        if not related_entity_ids:
-            return LegalEntityListResponseSchema(total=0, entities=[])
+            if not related_entity_ids:
+                return LegalEntityListResponseSchema(total=0, entities=[])
 
-        query &= Q(id__in=related_entity_ids)
+            query &= Q(id__in=related_entity_ids)
 
     if filters.get("entity_type_id"):
         query &= Q(entity_type_id=filters["entity_type_id"])
