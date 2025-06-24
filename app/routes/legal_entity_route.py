@@ -213,22 +213,32 @@ async def get_legal_entities(
         company_filter = filters.get("company_id")
         if company_filter:
             query &= Q(entity_company_relations__company_id=company_filter)
-        else:
-            related_entity_ids = await EntityCompanyRelation.filter(
-                company_id=company_id
-            ).values_list("legal_entity_id", flat=True)
+    else:
+        related_entity_ids = await EntityCompanyRelation.filter(
+            company_id=company_id
+        ).values_list("legal_entity_id", flat=True)
 
-            if not related_entity_ids:
-                return LegalEntityListResponseSchema(total=0, entities=[])
+        if not related_entity_ids:
+            return LegalEntityListResponseSchema(total=0, entities=[])
 
-            query &= Q(id__in=related_entity_ids)
+        query &= Q(id__in=related_entity_ids)
 
     if filters.get("entity_type"):
         query &= Q(entity_type_id=filters["entity_type"])
 
-    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
-        filters.get('sort_by', 'name')
-    }"
+    sort_by = filters.get("sort_by", "short_name")
+
+    # Маппинг алиасов → реальные поля модели
+    sort_field_map = {
+        "name": "short_name",
+        "short_name": "short_name",
+        # можно расширить при необходимости
+    }
+
+    sort_field = sort_field_map.get(sort_by, sort_by)
+
+    order_prefix = "-" if filters.get("order") == "desc" else ""
+    order_by = f"{order_prefix}{sort_field}"
     page = filters.get("page", 1)
     page_size = filters.get("page_size", 10)
     offset = (page - 1) * page_size
@@ -280,9 +290,20 @@ async def get_legal_entities_by_ids(
     if filters.get("entity_type"):
         query &= Q(entity_type_id=filters["entity_type"])
 
-    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
-        filters.get('sort_by', 'name')
-    }"
+    sort_by = filters.get("sort_by", "short_name")
+
+    # Маппинг алиасов → реальные поля модели
+    sort_field_map = {
+        "name": "short_name",
+        "short_name": "short_name",
+        # можно расширить при необходимости
+    }
+
+    sort_field = sort_field_map.get(sort_by, sort_by)
+
+    order_prefix = "-" if filters.get("order") == "desc" else ""
+    order_by = f"{order_prefix}{sort_field}"
+
     page = filters.get("page", 1)
     page_size = filters.get("page_size", 10)
     offset = (page - 1) * page_size
