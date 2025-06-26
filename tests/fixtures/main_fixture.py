@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.database.models import CashRegister, City, Storage
+from app.database.models import CashRegister, City, Warehouse
 
 
 @pytest.mark.usefixtures("setup_db")
@@ -22,12 +22,15 @@ async def seed_cash_register():
 @pytest.mark.usefixtures("setup_db")
 @pytest.fixture(scope="function")
 @pytest.mark.asyncio
-async def seed_storage():
-    storage = await Storage.create(
-        name="Test Storage", created_by=uuid4(), modified_by=uuid4(), company_id=uuid4()
+async def seed_warehouse():
+    warehouse = await Warehouse.create(
+        name="Test Warehouse",
+        created_by=uuid4(),
+        modified_by=uuid4(),
+        company_id=uuid4(),
     )
 
-    return storage
+    return warehouse
 
 
 @pytest.mark.usefixtures("setup_db")

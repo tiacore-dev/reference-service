@@ -11,7 +11,7 @@ from .entity_company_relation_route import entity_relation_router
 from .entity_type_route import entity_types_router
 from .legal_entity_route import entity_router
 from .monitoring_route import monitoring_router
-from .storage_route import storage_router
+from .warehouse_route import warehouse_router
 
 
 def register_routes(app: FastAPI):
@@ -23,7 +23,7 @@ def register_routes(app: FastAPI):
     app.include_router(
         cash_register_router, prefix="/api/cash-registers", tags=["CashRegisters"]
     )
-    app.include_router(storage_router, prefix="/api/storages", tags=["Storage"])
+    app.include_router(warehouse_router, prefix="/api/warehouses", tags=["Warehouse"])
     app.include_router(city_router, prefix="/api/cities", tags=["Cities"])
     app.include_router(monitoring_router, tags=["Monitoring"])
     app.include_router(

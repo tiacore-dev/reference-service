@@ -51,7 +51,7 @@ class EntityCompanyRelation(Model):
         table = "entity_company_relations"
 
 
-class Storage(Model):
+class Warehouse(Model):
     id = fields.UUIDField(pk=True, default=uuid.uuid4)
     name = fields.CharField(max_length=255)
     description = fields.CharField(max_length=255, null=True)
@@ -63,7 +63,7 @@ class Storage(Model):
     modified_by = fields.UUIDField()
 
     class Meta:
-        table = "storages"
+        table = "warehouses"
 
 
 class CashRegister(Model):

@@ -7,8 +7,8 @@ from pydantic import Field
 from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
 
 
-class StorageCreateSchema(CleanableBaseModel):
-    name: str = Field(..., min_length=3, max_length=100, alias="storage_name")
+class WarehouseCreateSchema(CleanableBaseModel):
+    name: str = Field(..., min_length=3, max_length=100, alias="warehouse_name")
     description: Optional[str] = Field(None)
     company_id: UUID = Field(...)
 
@@ -17,9 +17,9 @@ class StorageCreateSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class StorageEditSchema(CleanableBaseModel):
+class WarehouseEditSchema(CleanableBaseModel):
     name: Optional[str] = Field(
-        None, min_length=3, max_length=100, alias="storage_name"
+        None, min_length=3, max_length=100, alias="warehouse_name"
     )
     description: Optional[str] = Field(None)
     company_id: Optional[UUID] = Field(None)
@@ -29,9 +29,9 @@ class StorageEditSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class StorageSchema(CleanableBaseModel):
-    id: UUID = Field(..., alias="storage_id")
-    name: str = Field(..., alias="storage_name")
+class WarehouseSchema(CleanableBaseModel):
+    id: UUID = Field(..., alias="warehouse_id")
+    name: str = Field(..., alias="warehouse_name")
     description: Optional[str] = Field(None)
     company_id: UUID = Field(...)
     created_at: datetime.datetime = Field(...)
@@ -44,17 +44,19 @@ class StorageSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class StorageResponseSchema(CleanableBaseModel):
-    storage_id: UUID
+class WarehouseResponseSchema(CleanableBaseModel):
+    warehouse_id: UUID
 
 
-class StorageListResponseSchema(CleanableBaseModel):
+class WarehouseListResponseSchema(CleanableBaseModel):
     total: int
-    storages: List[StorageSchema]
+    warehouses: List[WarehouseSchema]
 
 
-def storage_filter_params(
-    storage_name: Optional[str] = Query(None, description="Фильтр по названию промпта"),
+def warehouse_filter_params(
+    warehouse_name: Optional[str] = Query(
+        None, description="Фильтр по названию промпта"
+    ),
     company_id: Optional[str] = Query(None),
     description: Optional[str] = Query(None, description="Фильтр по тексту"),
     sort_by: Optional[str] = Query("name", description="Поле сортировки"),
@@ -63,7 +65,7 @@ def storage_filter_params(
     page_size: Optional[int] = Query(10, ge=1, le=100),
 ):
     return {
-        "storage_name": storage_name,
+        "warehouse_name": warehouse_name,
         "description": description,
         "company_id": company_id,
         "sort_by": sort_by,
