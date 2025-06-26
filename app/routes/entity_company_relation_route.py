@@ -127,7 +127,7 @@ async def get_entity_company_relations(
     if filters.get("description"):
         query &= Q(description__icontains=filters["description"])
 
-    sort_by = filters.get("sort_by", "act_date")
+    sort_by = filters.get("sort_by", "created_at")
     order = filters.get("order", "asc").lower()
     if order not in ("asc", "desc"):
         raise HTTPException(
