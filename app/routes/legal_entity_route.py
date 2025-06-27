@@ -504,7 +504,7 @@ async def get_legal_entity_by_inn_kpp(
 )
 async def get_legal_entity(
     legal_entity_id: UUID,
-    context: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),
 ):
     entity = (
         await LegalEntity.filter(id=legal_entity_id)
@@ -514,10 +514,5 @@ async def get_legal_entity(
 
     if not entity:
         raise HTTPException(status_code=404, detail="Юридическое лицо не найдено")
-
-    related_company_ids = [rel.company_id for rel in entity.entity_company_relations]
-
-    if not context["is_superadmin"] and context["company"] not in related_company_ids:
-        raise HTTPException(status_code=403, detail="Нет доступа к этой записи")
 
     return LegalEntitySchema(**entity.__dict__)
