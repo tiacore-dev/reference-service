@@ -1,16 +1,7 @@
 import uuid
 
 from tortoise import fields
-from tortoise.fields.relational import ReverseRelation
 from tortoise.models import Model
-
-
-class LegalEntityType(Model):
-    id = fields.CharField(pk=True, max_length=255)
-    name = fields.CharField(max_length=255)
-
-    class Meta:
-        table = "legal_entity_types"
 
 
 class LegalEntity(Model):
@@ -23,32 +14,12 @@ class LegalEntity(Model):
     vat_rate = fields.IntField(default=0)
     address = fields.CharField(max_length=255, null=True)
     opf = fields.CharField(max_length=255, null=True)
-    entity_type = fields.ForeignKeyField(
-        "models.LegalEntityType", related_name="entities", null=True
-    )
-    signer = fields.CharField(max_length=255, null=True)
 
-    entity_company_relations: ReverseRelation["EntityCompanyRelation"]
+    signer = fields.CharField(max_length=255, null=True)
 
     class Meta:
         table = "legal_entities"
         unique_together = (("inn", "kpp"),)
-
-
-class EntityCompanyRelation(Model):
-    id = fields.UUIDField(pk=True, default=uuid.uuid4)
-    company_id = fields.UUIDField()
-    legal_entity = fields.ForeignKeyField(
-        "models.LegalEntity",
-        related_name="entity_company_relations",
-        on_delete=fields.CASCADE,
-    )
-    relation_type = fields.CharField(max_length=10)
-    description = fields.TextField(null=True)
-    created_at = fields.DatetimeField(auto_now_add=True)
-
-    class Meta:
-        table = "entity_company_relations"
 
 
 class Warehouse(Model):

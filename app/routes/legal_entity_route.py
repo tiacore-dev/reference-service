@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from tiacore_lib.handlers.auth_handler import get_current_user
 from tiacore_lib.pydantic_models.legal_entity_models import (
@@ -17,16 +17,12 @@ from tiacore_lib.pydantic_models.legal_entity_models import (
 )
 from tiacore_lib.utils.entity_data_get import fetch_egrul_data
 from tiacore_lib.utils.helpers import format_address
-from tiacore_lib.utils.validate_helpers import validate_exists
 from tortoise.expressions import Q
 
 from app.database.models import (
-    EntityCompanyRelation,
     LegalEntity,
-    LegalEntityType,
 )
 from app.pydantic_models.entity_models import LegalEntityByIdsRequestSchema
-from app.utils.db_helpers import get_entities_by_query
 
 entity_router = APIRouter()
 
@@ -39,18 +35,8 @@ entity_router = APIRouter()
 )
 async def add_legal_entity(
     data: LegalEntityCreateSchema,
-    context=Depends(get_current_user),
+    _=Depends(get_current_user),
 ):
-    entity_type = None
-
-    # if not context.get("is_superadmin"):
-    #     if data.company_id not in context["companies"]:
-    #         raise HTTPException(
-    #             status_code=403, detail="Вы не имеете доступа к этой компании"
-    #         )
-    if data.entity_type_id is not None:
-        await validate_exists(LegalEntityType, data.entity_type_id, "LegalEntityType")
-
     if data.kpp:
         existing_entity = await LegalEntity.exists(inn=data.inn, kpp=data.kpp)
     else:
@@ -77,16 +63,8 @@ async def add_legal_entity(
         vat_rate=data.vat_rate,
         opf=data.opf,
         address=data.address,
-        entity_type=entity_type,
         signer=data.signer,
     )
-    if data.relation_type:
-        await EntityCompanyRelation.create(
-            company_id=data.company_id,
-            legal_entity=entity,
-            relation_type=data.relation_type,
-            description=data.description,
-        )
     return LegalEntityResponseSchema(legal_entity_id=entity.id)
 
 
@@ -98,14 +76,8 @@ async def add_legal_entity(
 )
 async def add_legal_entity_by_inn(
     data: LegalEntityINNCreateSchema,
-    context=Depends(get_current_user),
+    _=Depends(get_current_user),
 ):
-    # if not context.get("is_superadmin"):
-    #     if data.company_id not in context["companies"]:
-    #         raise HTTPException(
-    #             status_code=403, detail="Вы не имеете доступа к этой компании"
-    #         )
-
     if data.kpp:
         existing_entity = await LegalEntity.exists(inn=data.inn, kpp=data.kpp)
     else:
@@ -177,14 +149,6 @@ async def add_legal_entity_by_inn(
             status_code=400, detail="Организация не является ни Юр Лицом, ни ИП"
         )
 
-    if data.relation_type:
-        await EntityCompanyRelation.create(
-            company_id=data.company_id,
-            legal_entity=entity,
-            relation_type=data.relation_type,
-            description=data.description,
-        )
-
     return LegalEntityResponseSchema(legal_entity_id=entity.id)
 
 
@@ -203,9 +167,6 @@ async def update_legal_entity(
         raise HTTPException(status_code=404, detail="Юридическое лицо не найдено")
 
     update_data = data.model_dump(exclude_unset=True)
-
-    if "entity_type_id" in update_data:
-        await validate_exists(LegalEntityType, data.entity_type_id, "LegalEntityType")
 
     await entity.update_from_dict(update_data)
     await entity.save()
@@ -236,36 +197,16 @@ async def delete_legal_entity(
     summary="Получение списка юридических лиц",
 )
 async def get_legal_entities(
-    company_id: Optional[UUID] = Query(None),
     filters: dict = Depends(legal_entity_filter_params),
-    context: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),
 ):
     query = Q()
 
-    if context["is_superadmin"]:
-        company_filter = filters.get("company_id")
-        if company_filter:
-            query &= Q(entity_company_relations__company_id=company_filter)
-    else:
-        related_entity_ids = await EntityCompanyRelation.filter(
-            company_id=company_id
-        ).values_list("legal_entity_id", flat=True)
-
-        if not related_entity_ids:
-            return LegalEntityListResponseSchema(total=0, entities=[])
-
-        query &= Q(id__in=related_entity_ids)
-
-    if filters.get("entity_type"):
-        query &= Q(entity_type_id=filters["entity_type"])
-
     sort_by = filters.get("sort_by", "short_name")
 
-    # Маппинг алиасов → реальные поля модели
     sort_field_map = {
         "name": "short_name",
         "short_name": "short_name",
-        # можно расширить при необходимости
     }
 
     sort_field = sort_field_map.get(sort_by, sort_by)
@@ -291,7 +232,6 @@ async def get_legal_entities(
             "opf",
             "vat_rate",
             "address",
-            "entity_type_id",
             "signer",
             "ogrn",
         )
@@ -301,9 +241,6 @@ async def get_legal_entities(
         total=total_count,
         entities=[LegalEntitySchema(**entity) for entity in entities],
     )
-
-
-# если есть
 
 
 @entity_router.post(
@@ -321,9 +258,6 @@ async def get_legal_entities_by_ids(
 
     query = Q(id__in=data.ids)
 
-    if filters.get("entity_type_id"):
-        query &= Q(entity_type_id=filters["entity_type_id"])
-
     sort_by = filters.get("sort_by", "short_name")
 
     # Маппинг алиасов → реальные поля модели
@@ -357,7 +291,6 @@ async def get_legal_entities_by_ids(
             "opf",
             "vat_rate",
             "address",
-            "entity_type_id",
             "signer",
             "ogrn",
         )
@@ -367,108 +300,6 @@ async def get_legal_entities_by_ids(
         total=total_count,
         entities=[LegalEntitySchema(**entity) for entity in entities],
     )
-
-
-@entity_router.get(
-    "/get-buyers",
-    response_model=LegalEntityListResponseSchema,
-    summary="Получение списка buyers",
-)
-async def get_buyers(
-    company_id: Optional[UUID] = Query(None),
-    context: dict = Depends(get_current_user),
-):
-    try:
-        if context["is_superadmin"]:
-            related_entity_ids = await EntityCompanyRelation.filter(
-                relation_type="buyer"
-            ).values_list("legal_entity_id", flat=True)
-        else:
-            related_entity_ids = await EntityCompanyRelation.filter(
-                company_id=company_id, relation_type="buyer"
-            ).values_list("legal_entity_id", flat=True)
-
-        if not related_entity_ids:
-            return LegalEntityListResponseSchema(total=0, entities=[])
-
-        query = Q(id__in=related_entity_ids)
-
-        total_count, entities = await get_entities_by_query(query)
-
-        return LegalEntityListResponseSchema(
-            total=total_count,
-            entities=[LegalEntitySchema(**entity) for entity in entities],
-        )
-
-    except (KeyError, TypeError, ValueError) as e:
-        logger.warning(f"Ошибка данных: {e}")
-        raise HTTPException(status_code=400, detail="Некорректные данные") from e
-
-
-@entity_router.get(
-    "/get-sellers",
-    response_model=LegalEntityListResponseSchema,
-    summary="Получение списка sellers",
-)
-async def get_sellers(
-    company_id: Optional[UUID] = Query(None),
-    context: dict = Depends(get_current_user),
-):
-    try:
-        # Ищем все legal_entity_id, связанные с этими компаниями
-        if context["is_superadmin"]:
-            related_entity_ids = await EntityCompanyRelation.filter(
-                relation_type="seller"
-            ).values_list("legal_entity_id", flat=True)
-        else:
-            related_entity_ids = await EntityCompanyRelation.filter(
-                company_id=company_id, relation_type="seller"
-            ).values_list("legal_entity_id", flat=True)
-
-        if not related_entity_ids:
-            return LegalEntityListResponseSchema(total=0, entities=[])
-        query = Q(id__in=related_entity_ids)
-
-        total_count, entities = await get_entities_by_query(query)
-        return LegalEntityListResponseSchema(
-            total=total_count,
-            entities=[LegalEntitySchema(**entity) for entity in entities],
-        )
-
-    except (KeyError, TypeError, ValueError) as e:
-        logger.warning(f"Ошибка данных: {e}")
-        raise HTTPException(status_code=400, detail="Некорректные данные") from e
-
-
-@entity_router.get(
-    "/get-by-company",
-    response_model=LegalEntityListResponseSchema,
-    summary="Получение списка организаций по компании",
-)
-async def get_by_company(
-    company_id: UUID = Query(..., description="ID компании"),
-    _: dict = Depends(get_current_user),
-):
-    try:
-        related_entity_ids = await EntityCompanyRelation.filter(
-            company_id=company_id
-        ).values_list("legal_entity_id", flat=True)
-
-        if not related_entity_ids:
-            return LegalEntityListResponseSchema(total=0, entities=[])
-
-        query = Q(id__in=related_entity_ids)
-
-        total_count, entities = await get_entities_by_query(query)
-
-        return LegalEntityListResponseSchema(
-            total=total_count,
-            entities=[LegalEntitySchema(**entity) for entity in entities],
-        )
-
-    except (KeyError, TypeError, ValueError) as e:
-        logger.warning(f"Ошибка данных: {e}")
-        raise HTTPException(status_code=400, detail="Некорректные данные") from e
 
 
 @entity_router.get(
@@ -506,11 +337,7 @@ async def get_legal_entity(
     legal_entity_id: UUID,
     _: dict = Depends(get_current_user),
 ):
-    entity = (
-        await LegalEntity.filter(id=legal_entity_id)
-        .prefetch_related("entity_type", "entity_company_relations")
-        .first()
-    )
+    entity = await LegalEntity.filter(id=legal_entity_id).first()
 
     if not entity:
         raise HTTPException(status_code=404, detail="Юридическое лицо не найдено")

@@ -1,16 +1,16 @@
-from uuid import uuid4
-
 import pytest
+import tiacore_lib
 from httpx import AsyncClient
 
-from app.database.models import LegalEntity, LegalEntityType
+from app.database.models import LegalEntity
+
+print(tiacore_lib.__file__)
 
 
 @pytest.mark.asyncio
 async def test_add_legal_entity(
     test_app: AsyncClient,
     jwt_token_admin: dict,
-    seed_legal_entity_type: LegalEntityType,
 ):
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
     short_name = "Новая организация"
@@ -21,10 +21,7 @@ async def test_add_legal_entity(
         "vat_rate": 20,
         "address": "Где-то в России",
         "ogrn": "1027700132185",
-        "entity_type": str(seed_legal_entity_type.id),
         "signer": "Директор Директорыч",
-        "relation_type": "buyer",
-        "company_id": str(uuid4()),
     }
 
     response = await test_app.post(
@@ -56,7 +53,6 @@ async def test_edit_legal_entity(
     new_data = {
         "short_name": "Обновлённое имя",
         "address": "Новый адрес",
-        "description": "Новое описание",
     }
 
     response = await test_app.patch(
@@ -133,8 +129,6 @@ async def test_add_legal_entity_by_inn(
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
     data = {
         "inn": "5406989176",
-        "company_id": str(uuid4()),
-        "relation_type": "buyer",
     }
 
     response = await test_app.post(
@@ -143,41 +137,6 @@ async def test_add_legal_entity_by_inn(
 
     assert response.status_code == 201, f"{response.status_code=} {response.text=}"
     assert "legal_entity_id" in response.json()
-
-
-@pytest.mark.asyncio
-async def test_get_buyers(
-    test_app: AsyncClient,
-    jwt_token_admin: dict,
-    seed_legal_entity_buyer: LegalEntity,
-):
-    headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-
-    response = await test_app.get("/api/legal-entities/get-buyers", headers=headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["total"] >= 1
-    assert any(
-        e["legal_entity_id"] == str(seed_legal_entity_buyer.id)
-        for e in data["entities"]
-    )
-
-
-@pytest.mark.asyncio
-async def test_get_sellers(
-    test_app: AsyncClient,
-    jwt_token_admin: dict,
-    seed_legal_entity: LegalEntity,
-):
-    headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-
-    response = await test_app.get("/api/legal-entities/get-sellers", headers=headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["total"] >= 1
-    assert any(
-        e["legal_entity_id"] == str(seed_legal_entity.id) for e in data["entities"]
-    )
 
 
 @pytest.mark.asyncio
