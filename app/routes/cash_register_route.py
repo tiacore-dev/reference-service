@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from loguru import logger
+from tiacore_lib.handlers.auth_handler import get_current_user
 from tiacore_lib.handlers.dependency_handler import require_permission_in_context
 from tiacore_lib.handlers.permissions_handler import (
     with_permission_and_company_from_body_check,
@@ -98,7 +99,7 @@ async def delete_cash_register(
 )
 async def get_cash_registers(
     filters: dict = Depends(cash_register_filter_params),
-    context=Depends(require_permission_in_context("get_all_cash_registers")),
+    context=Depends(get_current_user),
 ):
     query = Q()
     if not context["is_superadmin"]:
@@ -148,7 +149,7 @@ async def get_cash_register(
     cash_register_id: UUID = Path(
         ..., title="ID кассы", description="ID просматриваемой кассы"
     ),
-    context=Depends(require_permission_in_context("view_cash_register")),
+    context=Depends(get_current_user),
 ):
     logger.info(f"Запрос на просмотр кассы: {cash_register_id}")
     cash_register = (

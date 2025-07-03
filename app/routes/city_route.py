@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from loguru import logger
-from tiacore_lib.handlers.auth_handler import require_superadmin
+from tiacore_lib.handlers.auth_handler import get_current_user, require_superadmin
 from tiacore_lib.handlers.dependency_handler import require_permission_in_context
 from tortoise.expressions import Q
 
@@ -81,7 +81,7 @@ async def delete_city(
 )
 async def get_citys(
     filters: dict = Depends(city_filter_params),
-    _=Depends(require_permission_in_context("get_all_citys")),
+    _=Depends(get_current_user),
 ):
     query = Q()
 
@@ -121,7 +121,7 @@ async def get_city(
     city_id: UUID = Path(
         ..., title="ID города", description="ID просматриваемого города"
     ),
-    _=Depends(require_permission_in_context("view_city")),
+    _=Depends(get_current_user),
 ):
     logger.info(f"Запрос на просмотр города: {city_id}")
     city = (
