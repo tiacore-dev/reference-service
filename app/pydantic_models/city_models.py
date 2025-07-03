@@ -9,8 +9,8 @@ from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
 class CityCreateSchema(CleanableBaseModel):
     name: str = Field(..., min_length=3, max_length=100, alias="city_name")
     region: str = Field(...)
-    code: str = Field(...)
-    external_id: str = Field(...)
+    code: Optional[str] = Field(None)
+    external_id: Optional[str] = Field(None)
 
     class Config:
         from_attributes = True
@@ -32,8 +32,8 @@ class CitySchema(CleanableBaseModel):
     id: UUID = Field(..., alias="city_id")
     name: str = Field(..., alias="city_name")
     region: str = Field(...)
-    code: str = Field(...)
-    external_id: str = Field(...)
+    code: Optional[str] = Field(None)
+    external_id: Optional[str] = Field(None)
 
     class Config:
         from_attributes = True

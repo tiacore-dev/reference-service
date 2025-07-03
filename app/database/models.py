@@ -56,8 +56,8 @@ class City(Model):
     id = fields.UUIDField(pk=True, default=uuid.uuid4)
     name = fields.CharField(max_length=255)
     region = fields.CharField(max_length=255)
-    code = fields.CharField(max_length=20)
-    external_id = fields.CharField(max_length=40)
+    code = fields.CharField(max_length=20, null=True)
+    external_id = fields.CharField(max_length=40, null=True)
 
     class Meta:
         table = "cities"
