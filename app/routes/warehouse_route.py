@@ -99,8 +99,8 @@ async def get_warehouses(
     context=Depends(get_current_user),
 ):
     query = Q()
-    if not context["is_superadmin"]:
-        query &= Q(company_id=context["company_id"])
+    if filters.get("company_id"):
+        query &= Q(company_id=filters.get("company_id"))
     if filters.get("warehouse_name"):
         query &= Q(name__icontains=filters["warehouse_name"])
     if filters.get("description"):

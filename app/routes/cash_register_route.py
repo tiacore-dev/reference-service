@@ -102,8 +102,8 @@ async def get_cash_registers(
     context=Depends(get_current_user),
 ):
     query = Q()
-    if not context["is_superadmin"]:
-        query &= Q(company_id=context["company_id"])
+    if filters.get("company_id"):
+        query &= Q(company_id=filters.get("company_id"))
     if filters.get("cash_register_name"):
         query &= Q(name__icontains=filters["cash_register_name"])
     if filters.get("description"):
