@@ -46,7 +46,7 @@ class CityResponseSchema(CleanableBaseModel):
 
 class CityListResponseSchema(CleanableBaseModel):
     total: int
-    citys: List[CitySchema]
+    cities: List[CitySchema]
 
 
 def city_filter_params(

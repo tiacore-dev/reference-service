@@ -112,7 +112,7 @@ async def get_citys(
 
     return CityListResponseSchema(
         total=total_count,
-        citys=[CitySchema(**city) for city in citys],
+        cities=[CitySchema(**city) for city in citys],
     )
 
 
