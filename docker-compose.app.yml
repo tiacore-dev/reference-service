@@ -5,6 +5,7 @@ services:
     image: redis:7-alpine
     container_name: redis-reference-${CONFIG_NAME}
     restart: always
+    command: ["redis-server", "--replicaof", "no", "one"]
     networks:
     - reference_network
 
@@ -21,6 +22,11 @@ services:
       gunicorn -c gunicorn.conf.py run:app
     networks:
       - reference_network
+
+
+volumes:
+  redis-master-data:
+  redis-replica-data:
 
 
 networks:
