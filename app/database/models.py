@@ -27,6 +27,7 @@ class Warehouse(Model):
     name = fields.CharField(max_length=255)
     description = fields.CharField(max_length=255, null=True)
     company_id = fields.UUIDField()
+    city = fields.ForeignKeyField("models.City", related_name="warehouses")
 
     created_at = fields.DatetimeField(auto_now_add=True)
     created_by = fields.UUIDField()
