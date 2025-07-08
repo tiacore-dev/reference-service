@@ -16,10 +16,11 @@ async def test_add_warehouse(test_app: AsyncClient, jwt_token_admin: dict, seed_
     assert response.status_code == 201, f"Ошибка: {response.status_code}, {response.text}"
 
     response_data = response.json()
-    warehouse = await Warehouse.filter(name="Test Warehouse").first()
+    warehouse = await Warehouse.filter(name="Test Warehouse").prefetch_related("city").first()
 
     assert warehouse is not None, "Промпт не был сохранён в БД"
     assert response_data["warehouse_id"] == str(warehouse.id)
+    assert str(warehouse.city.id) == str(seed_city.id)
 
 
 @pytest.mark.asyncio
