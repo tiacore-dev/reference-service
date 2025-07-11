@@ -118,7 +118,17 @@ async def get_warehouses(
         .order_by(order_by)
         .offset((page - 1) * page_size)
         .limit(page_size)
-        .values("id", "name", "description", "created_at", "created_by", "modified_at", "modified_by", "company_id", "city_id")
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+            "city_id",
+        )
     )
 
     return WarehouseListResponseSchema(
@@ -136,7 +146,17 @@ async def get_warehouse(
     warehouse = (
         await Warehouse.filter(id=warehouse_id)
         .first()
-        .values("id", "name", "description", "created_at", "created_by", "modified_at", "modified_by", "company_id", "city_id")
+        .values(
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "created_by",
+            "modified_at",
+            "modified_by",
+            "company_id",
+            "city_id",
+        )
     )
     validate_company_access(warehouse, context, "складом")
     if warehouse is None:

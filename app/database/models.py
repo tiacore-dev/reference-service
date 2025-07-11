@@ -59,6 +59,7 @@ class City(Model):
     region = fields.CharField(max_length=255)
     code = fields.CharField(max_length=20, null=True)
     external_id = fields.CharField(max_length=40, null=True)
+    timezone = fields.IntField()
 
     class Meta:
         table = "cities"

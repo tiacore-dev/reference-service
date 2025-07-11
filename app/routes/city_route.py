@@ -94,9 +94,7 @@ async def get_citys(
     if filters.get("external_id"):
         query &= Q(external_id__icontains=filters["external_id"])
 
-    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
-        filters.get('sort_by', 'name')
-    }"
+    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{filters.get('sort_by', 'name')}"
     page = filters.get("page", 1)
     page_size = filters.get("page_size", 10)
 
@@ -107,7 +105,7 @@ async def get_citys(
         .order_by(order_by)
         .offset((page - 1) * page_size)
         .limit(page_size)
-        .values("id", "name", "external_id", "region", "code")
+        .values("id", "name", "external_id", "region", "code", "timezone")
     )
 
     return CityListResponseSchema(
@@ -118,17 +116,11 @@ async def get_citys(
 
 @city_router.get("/{city_id}", response_model=CitySchema, summary="Просмотр города")
 async def get_city(
-    city_id: UUID = Path(
-        ..., title="ID города", description="ID просматриваемого города"
-    ),
+    city_id: UUID = Path(..., title="ID города", description="ID просматриваемого города"),
     _=Depends(get_current_user),
 ):
     logger.info(f"Запрос на просмотр города: {city_id}")
-    city = (
-        await City.filter(id=city_id)
-        .first()
-        .values("id", "name", "external_id", "region", "code")
-    )
+    city = await City.filter(id=city_id).first().values("id", "name", "external_id", "region", "code", "timezone")
 
     if city is None:
         logger.warning(f"город {city_id} не найден")

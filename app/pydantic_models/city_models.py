@@ -11,6 +11,7 @@ class CityCreateSchema(CleanableBaseModel):
     region: str = Field(...)
     code: Optional[str] = Field(None)
     external_id: Optional[str] = Field(None)
+    timezone: int
 
     class Config:
         from_attributes = True
@@ -22,6 +23,7 @@ class CityEditSchema(CleanableBaseModel):
     region: Optional[str] = Field(None)
     code: Optional[str] = Field(None)
     external_id: Optional[str] = Field(None)
+    timezone: Optional[int] = Field(None)
 
     class Config:
         from_attributes = True
@@ -34,6 +36,7 @@ class CitySchema(CleanableBaseModel):
     region: str = Field(...)
     code: Optional[str] = Field(None)
     external_id: Optional[str] = Field(None)
+    timezone: int
 
     class Config:
         from_attributes = True
