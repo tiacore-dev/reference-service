@@ -25,7 +25,8 @@ class LegalEntity(Model):
 class Warehouse(Model):
     id = fields.UUIDField(pk=True, default=uuid.uuid4)
     name = fields.CharField(max_length=255)
-    description = fields.CharField(max_length=255, null=True)
+    description = fields.TextField(null=True)
+    address = fields.CharField(max_length=255)
     company_id = fields.UUIDField()
     city = fields.ForeignKeyField("models.City", related_name="warehouses")
 

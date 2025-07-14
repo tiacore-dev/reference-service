@@ -2,11 +2,10 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import Field
-from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
+from pydantic import BaseModel, Field
 
 
-class CityCreateSchema(CleanableBaseModel):
+class CityCreateSchema(BaseModel):
     name: str = Field(..., max_length=100, alias="city_name")
     region: str = Field(...)
     code: Optional[str] = Field(None)
@@ -18,7 +17,7 @@ class CityCreateSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class CityEditSchema(CleanableBaseModel):
+class CityEditSchema(BaseModel):
     name: Optional[str] = Field(None, max_length=100, alias="city_name")
     region: Optional[str] = Field(None)
     code: Optional[str] = Field(None)
@@ -30,7 +29,7 @@ class CityEditSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class CitySchema(CleanableBaseModel):
+class CitySchema(BaseModel):
     id: UUID = Field(..., alias="city_id")
     name: str = Field(..., alias="city_name")
     region: str = Field(...)
@@ -43,11 +42,11 @@ class CitySchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class CityResponseSchema(CleanableBaseModel):
+class CityResponseSchema(BaseModel):
     city_id: UUID
 
 
-class CityListResponseSchema(CleanableBaseModel):
+class CityListResponseSchema(BaseModel):
     total: int
     cities: List[CitySchema]
 

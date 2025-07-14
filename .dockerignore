@@ -3,7 +3,7 @@
 !*.test
 
 text.txt
-
+.vscode
 __pycache__/
 .venv/
 .git/

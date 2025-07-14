@@ -100,17 +100,11 @@ async def get_citys(
 
     total_count = await City.filter(query).count()
 
-    citys = (
-        await City.filter(query)
-        .order_by(order_by)
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .values("id", "name", "external_id", "region", "code", "timezone")
-    )
+    citys = await City.filter(query).order_by(order_by).offset((page - 1) * page_size).limit(page_size)
 
     return CityListResponseSchema(
         total=total_count,
-        cities=[CitySchema(**city) for city in citys],
+        cities=[CitySchema.model_validate(city) for city in citys],
     )
 
 
@@ -126,7 +120,7 @@ async def get_city(
         logger.warning(f"город {city_id} не найден")
         raise HTTPException(status_code=404, detail="город не найден")
 
-    city_schema = CitySchema(**city)
+    city_schema = CitySchema.model_validate(city)
 
     logger.success(f"город найден: {city_schema}")
     return city_schema

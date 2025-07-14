@@ -9,7 +9,7 @@ __pycache__/
 text.txt
 # C extensions
 *.so
-
+.vscode
 celery_docker
 docker-compose.dev.yml
 

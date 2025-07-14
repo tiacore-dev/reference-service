@@ -113,27 +113,11 @@ async def get_warehouses(
 
     total_count = await Warehouse.filter(query).count()
 
-    warehouses = (
-        await Warehouse.filter(query)
-        .order_by(order_by)
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .values(
-            "id",
-            "name",
-            "description",
-            "created_at",
-            "created_by",
-            "modified_at",
-            "modified_by",
-            "company_id",
-            "city_id",
-        )
-    )
+    warehouses = await Warehouse.filter(query).order_by(order_by).offset((page - 1) * page_size).limit(page_size)
 
     return WarehouseListResponseSchema(
         total=total_count,
-        warehouses=[WarehouseSchema(**warehouse) for warehouse in warehouses],
+        warehouses=[WarehouseSchema.model_validate(warehouse) for warehouse in warehouses],
     )
 
 
@@ -143,27 +127,13 @@ async def get_warehouse(
     context=Depends(get_current_user),
 ):
     logger.info(f"Запрос на просмотр склады: {warehouse_id}")
-    warehouse = (
-        await Warehouse.filter(id=warehouse_id)
-        .first()
-        .values(
-            "id",
-            "name",
-            "description",
-            "created_at",
-            "created_by",
-            "modified_at",
-            "modified_by",
-            "company_id",
-            "city_id",
-        )
-    )
+    warehouse = await Warehouse.filter(id=warehouse_id).first()
     validate_company_access(warehouse, context, "складом")
     if warehouse is None:
         logger.warning(f"склада {warehouse_id} не найдена")
         raise HTTPException(status_code=404, detail="склада не найдена")
 
-    warehouse_schema = WarehouseSchema(**warehouse)
+    warehouse_schema = WarehouseSchema.model_validate(warehouse)
 
     logger.success(f"склада найдена: {warehouse_schema}")
     return warehouse_schema

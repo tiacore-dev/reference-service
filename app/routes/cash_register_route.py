@@ -53,9 +53,7 @@ async def add_cash_register(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def edit_cash_register(
-    cash_register_id: UUID = Path(
-        ..., title="ID кассы", description="ID изменяемой кассы"
-    ),
+    cash_register_id: UUID = Path(..., title="ID кассы", description="ID изменяемой кассы"),
     data: CashRegisterEditSchema = Body(...),
     context=Depends(with_permission_and_company_from_body_check("edit_cash_register")),
 ):
@@ -79,9 +77,7 @@ async def edit_cash_register(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_cash_register(
-    cash_register_id: UUID = Path(
-        ..., title="ID кассы", description="ID удаляемой кассы"
-    ),
+    cash_register_id: UUID = Path(..., title="ID кассы", description="ID удаляемой кассы"),
     context=Depends(require_permission_in_context("delete_cash_register")),
 ):
     cash_register = await CashRegister.filter(id=cash_register_id).first()
@@ -109,70 +105,34 @@ async def get_cash_registers(
     if filters.get("description"):
         query &= Q(description__icontains=filters["description"])
 
-    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{
-        filters.get('sort_by', 'name')
-    }"
+    order_by = f"{'-' if filters.get('order') == 'desc' else ''}{filters.get('sort_by', 'name')}"
     page = filters.get("page", 1)
     page_size = filters.get("page_size", 10)
 
     total_count = await CashRegister.filter(query).count()
 
-    cash_registers = (
-        await CashRegister.filter(query)
-        .order_by(order_by)
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .values(
-            "id",
-            "name",
-            "description",
-            "created_at",
-            "created_by",
-            "modified_at",
-            "modified_by",
-            "company_id",
-        )
-    )
+    cash_registers = await CashRegister.filter(query).order_by(order_by).offset((page - 1) * page_size).limit(page_size)
 
     return CashRegisterListResponseSchema(
         total=total_count,
-        cash_registers=[
-            CashRegisterSchema(**cash_register) for cash_register in cash_registers
-        ],
+        cash_registers=[CashRegisterSchema.model_validate(cash_register) for cash_register in cash_registers],
     )
 
 
-@cash_register_router.get(
-    "/{cash_register_id}", response_model=CashRegisterSchema, summary="Просмотр кассы"
-)
+@cash_register_router.get("/{cash_register_id}", response_model=CashRegisterSchema, summary="Просмотр кассы")
 async def get_cash_register(
-    cash_register_id: UUID = Path(
-        ..., title="ID кассы", description="ID просматриваемой кассы"
-    ),
+    cash_register_id: UUID = Path(..., title="ID кассы", description="ID просматриваемой кассы"),
     context=Depends(get_current_user),
 ):
     logger.info(f"Запрос на просмотр кассы: {cash_register_id}")
-    cash_register = (
-        await CashRegister.filter(id=cash_register_id)
-        .first()
-        .values(
-            "id",
-            "name",
-            "description",
-            "created_at",
-            "created_by",
-            "modified_at",
-            "modified_by",
-            "company_id",
-        )
-    )
+    cash_register = await CashRegister.filter(id=cash_register_id).first()
 
     if cash_register is None:
         logger.warning(f"касса {cash_register_id} не найдена")
         raise HTTPException(status_code=404, detail="Касса не найдена")
     validate_company_access(cash_register, context, "кассой")
 
-    cash_register_schema = CashRegisterSchema(**cash_register)
+    cash_register_schema = CashRegisterSchema.model_validate(cash_register)
 
     logger.success(f"касса найдена: {cash_register_schema}")
     return cash_register_schema

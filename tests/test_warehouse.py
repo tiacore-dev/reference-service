@@ -10,7 +10,12 @@ from app.database.models import City, Warehouse
 async def test_add_warehouse(test_app: AsyncClient, jwt_token_admin: dict, seed_city: City):
     """Тест добавления нового промпта."""
     headers = {"Authorization": f"Bearer {jwt_token_admin['access_token']}"}
-    data = {"warehouse_name": "Test Warehouse", "company_id": str(uuid4()), "city_id": str(seed_city.id)}
+    data = {
+        "warehouse_name": "Test Warehouse",
+        "company_id": str(uuid4()),
+        "city_id": str(seed_city.id),
+        "address": "Test address",
+    }
 
     response = await test_app.post("/api/warehouses/add", headers=headers, json=data)
     assert response.status_code == 201, f"Ошибка: {response.status_code}, {response.text}"

@@ -3,13 +3,13 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import Query
-from pydantic import Field
-from tiacore_lib.pydantic_models.clean_model import CleanableBaseModel
+from pydantic import BaseModel, Field
 
 
-class WarehouseCreateSchema(CleanableBaseModel):
+class WarehouseCreateSchema(BaseModel):
     name: str = Field(..., min_length=3, max_length=100, alias="warehouse_name")
     description: Optional[str] = Field(None)
+    address: str = Field(...)
     city_id: UUID = Field(...)
     company_id: UUID = Field(...)
 
@@ -18,9 +18,10 @@ class WarehouseCreateSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class WarehouseEditSchema(CleanableBaseModel):
+class WarehouseEditSchema(BaseModel):
     name: Optional[str] = Field(None, min_length=3, max_length=100, alias="warehouse_name")
     description: Optional[str] = Field(None)
+    address: Optional[str] = Field(None)
     company_id: Optional[UUID] = Field(None)
     city_id: Optional[UUID] = Field(None)
 
@@ -29,10 +30,11 @@ class WarehouseEditSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class WarehouseSchema(CleanableBaseModel):
+class WarehouseSchema(BaseModel):
     id: UUID = Field(..., alias="warehouse_id")
     name: str = Field(..., alias="warehouse_name")
     city_id: UUID = Field(...)
+    address: str = Field(...)
     description: Optional[str] = Field(None)
     company_id: UUID = Field(...)
     created_at: datetime.datetime = Field(...)
@@ -45,11 +47,11 @@ class WarehouseSchema(CleanableBaseModel):
         populate_by_name = True
 
 
-class WarehouseResponseSchema(CleanableBaseModel):
+class WarehouseResponseSchema(BaseModel):
     warehouse_id: UUID
 
 
-class WarehouseListResponseSchema(CleanableBaseModel):
+class WarehouseListResponseSchema(BaseModel):
     total: int
     warehouses: List[WarehouseSchema]
 
