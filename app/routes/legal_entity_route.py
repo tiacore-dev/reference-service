@@ -44,15 +44,11 @@ async def add_legal_entity(
 
     if existing_entity:
         logger.warning(f"Юрлицо с ИНН {data.inn} уже существует")
-        raise HTTPException(
-            status_code=400, detail=f"Юрлицо с ИНН {data.inn} уже существует"
-        )
+        raise HTTPException(status_code=400, detail=f"Юрлицо с ИНН {data.inn} уже существует")
     if data.ogrn:
         existing_entity = await LegalEntity.exists(ogrn=data.ogrn)
         if existing_entity:
-            raise HTTPException(
-                status_code=400, detail=f"Юрлицо с ОГРН {data.ogrn} уже существует"
-            )
+            raise HTTPException(status_code=400, detail=f"Юрлицо с ОГРН {data.ogrn} уже существует")
 
     entity = await LegalEntity.create(
         short_name=data.short_name,
@@ -85,9 +81,7 @@ async def add_legal_entity_by_inn(
 
     if existing_entity:
         logger.warning(f"Юрлицо с ИНН {data.inn} уже существует")
-        raise HTTPException(
-            status_code=400, detail=f"Юрлицо с ИНН {data.inn} уже существует"
-        )
+        raise HTTPException(status_code=400, detail=f"Юрлицо с ИНН {data.inn} уже существует")
 
     entity_data = await fetch_egrul_data(data.inn)
     # logger.debug(f"Полученный ответ о юр лице: {entity_data}")
@@ -96,14 +90,18 @@ async def add_legal_entity_by_inn(
 
         # Валидация КПП: если указан, должен быть среди филиалов
         if data.kpp:
+            branches = org_data.get("СвПодразд", {}).get("СвФилиал", [])
+            if isinstance(branches, dict):
+                branches = [branches]
+            elif isinstance(branches, str):
+                branches = []  # или можно залогировать неожиданный формат
+
             branch_kpps = [
-                филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
-                for филиал in org_data.get("СвПодразд", {}).get("СвФилиал", [])
-                if филиал.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
+                branch.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
+                for branch in branches
+                if isinstance(branch, dict) and branch.get("СвУчетНОФилиал", {}).get("@attributes", {}).get("КПП")
             ]
-            if data.kpp not in branch_kpps and data.kpp != org_data["@attributes"].get(
-                "КПП"
-            ):
+            if data.kpp not in branch_kpps and data.kpp != org_data["@attributes"].get("КПП"):
                 raise HTTPException(
                     status_code=404,
                     detail=f"""КПП {data.kpp} не найден ни у
@@ -145,9 +143,7 @@ async def add_legal_entity_by_inn(
             address=addr,
         )
     else:
-        raise HTTPException(
-            status_code=400, detail="Организация не является ни Юр Лицом, ни ИП"
-        )
+        raise HTTPException(status_code=400, detail="Организация не является ни Юр Лицом, ни ИП")
 
     return LegalEntityResponseSchema(legal_entity_id=entity.id)
 
